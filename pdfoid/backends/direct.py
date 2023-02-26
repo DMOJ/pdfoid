@@ -27,11 +27,13 @@ class DirectSeleniumBackend(object):
                 raise RuntimeError('necessary file "%s" is not a file' % path)
 
     @gen.coroutine
-    def render(self, *, title, html, wait_for):
+    def render(self, *, title, html, header_template, footer_template, wait_for):
         with DirectSeleniumWorker(self) as worker:
             result = yield worker.render(
                 title=title,
                 html=html,
+                header_template=header_template,
+                footer_template=footer_template,
                 wait_for=wait_for,
         )
         return result
@@ -42,12 +44,7 @@ class DirectSeleniumWorker(object):
         'printBackground': True,
         'displayHeaderFooter': True,
         'headerTemplate': '<div></div>',
-        # TODO(tbrindus): i18n of page count in footer
-        # Maybe we need to take footerTemplate as part of the inputs to the pdf renderer rpc?
-        'footerTemplate': '<center style="margin: 0 auto; font-family: Segoe UI; font-size: 10px">' +
-                          ('Page %s of %s') %
-                          ('<span class="pageNumber"></span>', '<span class="totalPages"></span>') +
-                          '</center>',
+        'footerTemplate': '<div></div>',
     }
 
     def __init__(self, backend):
@@ -63,11 +60,15 @@ class DirectSeleniumWorker(object):
         shutil.rmtree(self.dir)
 
     @gen.coroutine
-    def render(self, *, title, html, wait_for):
+    def render(self, *, title, html, header_template, footer_template, wait_for):
         with open(self.input_html_file, 'wb') as f:
             f.write(utf8bytes(html))
 
-        yield self.html_to_pdf(wait_for=wait_for)
+        yield self.html_to_pdf(
+            header_template=header_template,
+            footer_template=footer_template,
+            wait_for=wait_for,
+        )
         yield self.set_pdf_title_with_exiftool(title)
 
         with open(self.output_pdf_file, 'rb') as f:
@@ -79,7 +80,7 @@ class DirectSeleniumWorker(object):
         return '\n'.join(map(str, driver.get_log('driver') + driver.get_log('browser')))
 
     @gen.coroutine
-    def html_to_pdf(self, *, wait_for):
+    def html_to_pdf(self, *, header_template, footer_template, wait_for):
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.binary_location = self.backend.chrome_path
@@ -96,7 +97,15 @@ class DirectSeleniumWorker(object):
             except TimeoutException:
                 raise RuntimeError('PDF rendering timed out:\n%s' % self.get_log(browser))
 
-        response = browser.execute_cdp_cmd('Page.printToPDF', self.template)
+        template = self.template.copy()
+        if footer_template:
+            template['footerTemplate'] = footer_template \
+                .replace('{page_number}', '<span class="pageNumber"></span>') \
+                .replace('{total_pages}', '<span class="totalPages"></span>')
+        if header_template:
+            template['headerTemplate'] = header_template
+
+        response = browser.execute_cdp_cmd('Page.printToPDF', template)
         if not response:
             raise RuntimeError('no response from PDF printer:\n%s' % self.get_log(browser)) 
 
