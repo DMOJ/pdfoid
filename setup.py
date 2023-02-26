@@ -1,6 +1,6 @@
 import os
 
-from setuptools import setup
+from setuptools import find_packages, setup
 
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as f:
     long_description = f.read()
@@ -8,7 +8,7 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as f:
 setup(
     name='pdfoid',
     version='0.1',
-    packages=['pdfoid'],
+    packages=find_packages(),
     entry_points={
         'console_scripts': [
             'pdfoid = pdfoid.main:main',
