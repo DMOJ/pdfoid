@@ -27,12 +27,10 @@ class DirectSeleniumBackend(object):
         if not HAS_SELENIUM:
             raise RuntimeError('cannot use DirectSeleniumBackend without selenium being installed')
 
-        # TODO(tbrindus): verify that these are the paths we want
         self.chromedriver_path = os.environ['CHROMEDRIVER_PATH']
         self.chrome_path = os.environ.get('CHROME_PATH', None)
-        self.exiftool_path = os.environ.get('EXIFTOOL', '/usr/bin/exiftool')
+        self.exiftool_path = os.environ.get('EXIFTOOL_PATH', '/usr/bin/exiftool')
 
-        # TODO(tbrindus): validate chrome_path? selenium is happy with it being None though
         for path in [self.chromedriver_path, self.exiftool_path]:
             if not os.path.isfile(path):
                 raise RuntimeError('necessary file "%s" is not a file' % path)
