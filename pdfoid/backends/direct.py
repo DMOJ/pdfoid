@@ -9,24 +9,15 @@ from tornado.process import Subprocess
 
 from pdfoid.utils import utf8bytes, utf8text
 
-# TODO(tbrindus): maybe just make this required if we're only going to have
-# this backend for now
-try:
-    from selenium import webdriver
-    from selenium.common.exceptions import TimeoutException
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support import expected_conditions as EC
-    from selenium.webdriver.support.ui import WebDriverWait
-    HAS_SELENIUM = True
-except ImportError:
-    HAS_SELENIUM = False
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 class DirectSeleniumBackend(object):
     def __init__(self):
-        if not HAS_SELENIUM:
-            raise RuntimeError('cannot use DirectSeleniumBackend without selenium being installed')
-
         self.chromedriver_path = os.environ['CHROMEDRIVER_PATH']
         self.chrome_path = os.environ.get('CHROME_PATH', None)
         self.exiftool_path = os.environ.get('EXIFTOOL_PATH', '/usr/bin/exiftool')
