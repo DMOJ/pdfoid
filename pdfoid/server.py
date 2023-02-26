@@ -57,7 +57,5 @@ class MainHandler(tornado.web.RequestHandler):
             logger.exception('failed to render input')
             self.write(json.dumps({
                 'success': False,
-                # TODO(tbrindus): out of bounds for MissingArgumentError
-                # which we get if we forget to pass title= or html=
-                'error': error.args[0],
+                'error': str(error),
             }))
