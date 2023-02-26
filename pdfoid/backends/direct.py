@@ -27,9 +27,13 @@ class DirectSeleniumBackend(object):
                 raise RuntimeError('necessary file "%s" is not a file' % path)
 
     @gen.coroutine
-    def render(self, *, title, html):
+    def render(self, *, title, html, wait_for):
         with DirectSeleniumWorker(self) as worker:
-            result = yield worker.render(title=title, html=html)
+            result = yield worker.render(
+                title=title,
+                html=html,
+                wait_for=wait_for,
+        )
         return result
 
 
@@ -59,11 +63,11 @@ class DirectSeleniumWorker(object):
         shutil.rmtree(self.dir)
 
     @gen.coroutine
-    def render(self, *, title, html):
+    def render(self, *, title, html, wait_for):
         with open(self.input_html_file, 'wb') as f:
             f.write(utf8bytes(html))
 
-        yield self.html_to_pdf()
+        yield self.html_to_pdf(wait_for=wait_for)
         yield self.set_pdf_title_with_exiftool(title)
 
         with open(self.output_pdf_file, 'rb') as f:
@@ -75,19 +79,22 @@ class DirectSeleniumWorker(object):
         return '\n'.join(map(str, driver.get_log('driver') + driver.get_log('browser')))
 
     @gen.coroutine
-    def html_to_pdf(self):
+    def html_to_pdf(self, *, wait_for):
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.binary_location = self.backend.chrome_path
 
         browser = webdriver.Chrome(self.backend.chromedriver_path, options=options)
         browser.get('file://%s' % self.input_html_file)
-        self.log = self.get_log(browser)
 
-        try:
-            WebDriverWait(browser, 15).until(EC.presence_of_element_located((By.CLASS_NAME, 'math-loaded')))
-        except TimeoutException:
-            raise RuntimeError('PDF math rendering timed out:%s' % self.get_log(browser))
+        if wait_for is not None:
+            (wait_for_class, wait_for_duration_secs) = wait_for
+            try:
+                WebDriverWait(browser, wait_for_duration_secs).until(
+                    EC.presence_of_element_located((By.CLASS_NAME, wait_for_class))
+                )
+            except TimeoutException:
+                raise RuntimeError('PDF rendering timed out:\n%s' % self.get_log(browser))
 
         response = browser.execute_cdp_cmd('Page.printToPDF', self.template)
         if not response:

@@ -22,7 +22,27 @@ class MainHandler(tornado.web.RequestHandler):
             title = unquote(self.get_argument('title'))
             html = unquote(self.get_argument('html'))
 
-            result = yield self.backend.render(title=title, html=html)
+            wait_for_class = self.get_argument('wait-for-class', default=None)
+            if wait_for_class is not None:
+                wait_for_class = unquote(wait_for_class)
+
+            wait_for_duration_secs = self.get_argument('wait-for-duration-secs', default=None)
+            if wait_for_duration_secs is not None:
+                wait_for_duration_secs = int(wait_for_duration_secs)
+
+            if wait_for_class is not None and bool(wait_for_class) != bool(wait_for_duration_secs):
+                raise RuntimeError('must specify both `wait-for-class` and `wait-for-duration-secs` together')
+
+            if wait_for_class and wait_for_duration_secs:
+                wait_for = (wait_for_class, wait_for_duration_secs)
+            else:
+                wait_for = None
+
+            result = yield self.backend.render(
+                title=title,
+                html=html,
+                wait_for=wait_for,
+            )
             self.write(json.dumps({
                 'success': True,
                 'pdf': b64encode(result['pdf']).decode('ascii'),
