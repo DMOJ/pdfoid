@@ -18,13 +18,9 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 class DirectSeleniumBackend(object):
     def __init__(self):
-        self.chromedriver_path = os.environ['CHROMEDRIVER_PATH']
-        self.chrome_path = os.environ.get('CHROME_PATH', None)
-        self.exiftool_path = os.environ.get('EXIFTOOL_PATH', '/usr/bin/exiftool')
-
-        for path in [self.chromedriver_path, self.exiftool_path]:
-            if not os.path.isfile(path):
-                raise RuntimeError('necessary file "%s" is not a file' % path)
+        self.chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', 'chromedriver')
+        self.chrome_path = os.environ.get('CHROME_PATH')
+        self.exiftool_path = os.environ.get('EXIFTOOL_PATH', 'exiftool')
 
     @gen.coroutine
     def render(self, *, title, html, header_template, footer_template, wait_for):
