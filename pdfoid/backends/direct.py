@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import tempfile
 import base64
+from contextlib import closing
 
 from tornado import gen
 from tornado.process import Subprocess
@@ -82,31 +83,32 @@ class DirectSeleniumWorker(object):
         options.binary_location = self.backend.chrome_path
 
         browser = webdriver.Chrome(self.backend.chromedriver_path, options=options)
-        browser.get('file://%s' % self.input_html_file)
+        with closing(browser):
+            browser.get('file://%s' % self.input_html_file)
 
-        if wait_for is not None:
-            (wait_for_class, wait_for_duration_secs) = wait_for
-            try:
-                WebDriverWait(browser, wait_for_duration_secs).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, wait_for_class))
-                )
-            except TimeoutException:
-                raise RuntimeError('PDF rendering timed out:\n%s' % self.get_log(browser))
+            if wait_for is not None:
+                (wait_for_class, wait_for_duration_secs) = wait_for
+                try:
+                    WebDriverWait(browser, wait_for_duration_secs).until(
+                        EC.presence_of_element_located((By.CLASS_NAME, wait_for_class))
+                    )
+                except TimeoutException:
+                    raise RuntimeError('PDF rendering timed out:\n%s' % self.get_log(browser))
 
-        template = self.template.copy()
-        if footer_template:
-            template['footerTemplate'] = footer_template \
-                .replace('{page_number}', '<span class="pageNumber"></span>') \
-                .replace('{total_pages}', '<span class="totalPages"></span>')
-        if header_template:
-            template['headerTemplate'] = header_template
+            template = self.template.copy()
+            if footer_template:
+                template['footerTemplate'] = footer_template \
+                    .replace('{page_number}', '<span class="pageNumber"></span>') \
+                    .replace('{total_pages}', '<span class="totalPages"></span>')
+            if header_template:
+                template['headerTemplate'] = header_template
 
-        response = browser.execute_cdp_cmd('Page.printToPDF', template)
-        if not response:
-            raise RuntimeError('no response from PDF printer:\n%s' % self.get_log(browser)) 
+            response = browser.execute_cdp_cmd('Page.printToPDF', template)
+            if not response:
+                raise RuntimeError('no response from PDF printer:\n%s' % self.get_log(browser))
 
-        with open(self.output_pdf_file, 'wb') as f:
-            f.write(base64.b64decode(response['data']))
+            with open(self.output_pdf_file, 'wb') as f:
+                f.write(base64.b64decode(response['data']))
 
     @gen.coroutine
     def set_pdf_title_with_exiftool(self, title):
