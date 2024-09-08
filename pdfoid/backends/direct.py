@@ -5,8 +5,8 @@ import tempfile
 import base64
 from contextlib import closing
 
+from selenium.webdriver.chrome.service import Service
 from tornado import gen
-from tornado.process import Subprocess
 
 from pdfoid.utils import utf8bytes, utf8text
 
@@ -78,11 +78,12 @@ class DirectSeleniumWorker(object):
 
     @gen.coroutine
     def html_to_pdf(self, *, header_template, footer_template, wait_for):
+        service = Service(executable_path=self.backend.chromedriver_path)
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.binary_location = self.backend.chrome_path
 
-        browser = webdriver.Chrome(self.backend.chromedriver_path, options=options)
+        browser = webdriver.Chrome(service=service, options=options)
         with closing(browser):
             browser.get('file://%s' % self.input_html_file)
 
